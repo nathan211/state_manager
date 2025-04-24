@@ -10,13 +10,13 @@ class FieldBuilder<T, R> extends StatefulWidget {
   final T? initialValue;
 
   const FieldBuilder({
-    Key? key,
+    super.key,
     required this.stateKey,
     required this.fieldPath,
     required this.selector,
     required this.builder,
     this.initialValue,
-  }) : super(key: key);
+  });
 
   @override
   FieldBuilderState<T, R> createState() => FieldBuilderState<T, R>();

@@ -8,11 +8,11 @@ class StateBuilder<T> extends StatefulWidget {
   final T? initialValue;
 
   const StateBuilder({
-    Key? key,
+    super.key,
     required this.stateKey,
     required this.builder,
     this.initialValue,
-  }) : super(key: key);
+  });
 
   @override
   StateBuilderState<T> createState() => StateBuilderState<T>();
