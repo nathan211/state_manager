@@ -8,3 +8,5 @@ export 'src/state_builder.dart';
 export 'src/state_consumer.dart';
 export 'src/field_builder.dart';
 export 'src/async_state_handler.dart';
+export 'src/complex_state_builder.dart';
+export 'src/complex_state_consumer.dart';

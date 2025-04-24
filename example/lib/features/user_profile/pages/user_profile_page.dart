@@ -1,6 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_state_manager/flutter_state_manager.dart';
+import '../controllers/user_profile_controller.dart';
+import '../states/user_profile_state.dart';
 
+/// User profile example page demonstrating field-specific state management
 class UserProfilePage extends StatefulWidget {
   const UserProfilePage({super.key});
 
@@ -9,22 +12,14 @@ class UserProfilePage extends StatefulWidget {
 }
 
 class _UserProfilePageState extends State<UserProfilePage> {
-  final Map<String, dynamic> _initialUserData = {
-    'name': 'John Doe',
-    'email': 'john@example.com',
-    'preferences': {
-      'darkMode': false,
-      'notifications': true,
-    }
-  };
+  /// Controller for handling business logic
+  final _controller = UserProfileController();
 
   @override
   void initState() {
     super.initState();
-    // Ensure user state is registered
-    if (!StateStore.instance.hasComplexState('user')) {
-      StateStore.instance.registerComplex<Map<String, dynamic>>('user', _initialUserData);
-    }
+    // Ensure user profile state is registered
+    UserProfileState.register();
   }
 
   @override
@@ -46,27 +41,15 @@ class _UserProfilePageState extends State<UserProfilePage> {
             
             // Using FieldBuilder to only rebuild when the name changes
             FieldBuilder<Map<String, dynamic>, String>(
-              stateKey: 'user',
+              stateKey: UserProfileState.stateKey,
               fieldPath: 'name',
               selector: (user) => user['name'] as String,
-              initialValue: _initialUserData,
+              initialValue: UserProfileState.initialValue,
               builder: (context, name) {
                 return _EditableField(
                   label: 'Name',
                   value: name,
-                  onSave: (newValue) {
-                    try {
-                      final complexNotifier = StateStore.instance.getComplexState<Map<String, dynamic>>('user');
-                      final currentUser = Map<String, dynamic>.from(complexNotifier.value);
-                      currentUser['name'] = newValue;
-                      complexNotifier.update(currentUser);
-                    } catch (e) {
-                      debugPrint('Error updating name: $e');
-                      ScaffoldMessenger.of(context).showSnackBar(
-                        SnackBar(content: Text('Error updating name: $e')),
-                      );
-                    }
-                  },
+                  onSave: (newValue) => _controller.updateName(newValue, context: context),
                 );
               },
             ),
@@ -75,27 +58,15 @@ class _UserProfilePageState extends State<UserProfilePage> {
             
             // Using FieldBuilder to only rebuild when the email changes
             FieldBuilder<Map<String, dynamic>, String>(
-              stateKey: 'user',
+              stateKey: UserProfileState.stateKey,
               fieldPath: 'email',
               selector: (user) => user['email'] as String,
-              initialValue: _initialUserData,
+              initialValue: UserProfileState.initialValue,
               builder: (context, email) {
                 return _EditableField(
                   label: 'Email',
                   value: email,
-                  onSave: (newValue) {
-                    try {
-                      final complexNotifier = StateStore.instance.getComplexState<Map<String, dynamic>>('user');
-                      final currentUser = Map<String, dynamic>.from(complexNotifier.value);
-                      currentUser['email'] = newValue;
-                      complexNotifier.update(currentUser);
-                    } catch (e) {
-                      debugPrint('Error updating email: $e');
-                      ScaffoldMessenger.of(context).showSnackBar(
-                        SnackBar(content: Text('Error updating email: $e')),
-                      );
-                    }
-                  },
+                  onSave: (newValue) => _controller.updateEmail(newValue, context: context),
                 );
               },
             ),
@@ -111,58 +82,30 @@ class _UserProfilePageState extends State<UserProfilePage> {
             
             // Using FieldBuilder for a nested field
             FieldBuilder<Map<String, dynamic>, bool>(
-              stateKey: 'user',
+              stateKey: UserProfileState.stateKey,
               fieldPath: 'preferences.darkMode',
               selector: (user) => user['preferences']['darkMode'] as bool,
-              initialValue: _initialUserData,
+              initialValue: UserProfileState.initialValue,
               builder: (context, darkMode) {
                 return SwitchListTile(
                   title: const Text('Dark Mode'),
                   value: darkMode,
-                  onChanged: (newValue) {
-                    try {
-                      final complexNotifier = StateStore.instance.getComplexState<Map<String, dynamic>>('user');
-                      final currentUser = Map<String, dynamic>.from(complexNotifier.value);
-                      final preferences = Map<String, dynamic>.from(currentUser['preferences'] as Map);
-                      preferences['darkMode'] = newValue;
-                      currentUser['preferences'] = preferences;
-                      complexNotifier.update(currentUser);
-                    } catch (e) {
-                      debugPrint('Error updating dark mode: $e');
-                      ScaffoldMessenger.of(context).showSnackBar(
-                        SnackBar(content: Text('Error updating dark mode: $e')),
-                      );
-                    }
-                  },
+                  onChanged: (newValue) => _controller.updateDarkMode(newValue, context: context),
                 );
               },
             ),
             
             // Using FieldBuilder for another nested field
             FieldBuilder<Map<String, dynamic>, bool>(
-              stateKey: 'user',
+              stateKey: UserProfileState.stateKey,
               fieldPath: 'preferences.notifications',
               selector: (user) => user['preferences']['notifications'] as bool,
-              initialValue: _initialUserData,
+              initialValue: UserProfileState.initialValue,
               builder: (context, notifications) {
                 return SwitchListTile(
                   title: const Text('Enable Notifications'),
                   value: notifications,
-                  onChanged: (newValue) {
-                    try {
-                      final complexNotifier = StateStore.instance.getComplexState<Map<String, dynamic>>('user');
-                      final currentUser = Map<String, dynamic>.from(complexNotifier.value);
-                      final preferences = Map<String, dynamic>.from(currentUser['preferences'] as Map);
-                      preferences['notifications'] = newValue;
-                      currentUser['preferences'] = preferences;
-                      complexNotifier.update(currentUser);
-                    } catch (e) {
-                      debugPrint('Error updating notifications: $e');
-                      ScaffoldMessenger.of(context).showSnackBar(
-                        SnackBar(content: Text('Error updating notifications: $e')),
-                      );
-                    }
-                  },
+                  onChanged: (newValue) => _controller.updateNotifications(newValue, context: context),
                 );
               },
             ),
@@ -171,8 +114,8 @@ class _UserProfilePageState extends State<UserProfilePage> {
             
             // Using StateConsumer to display the entire user object
             StateConsumer<Map<String, dynamic>>(
-              stateKey: 'user',
-              initialValue: _initialUserData,
+              stateKey: UserProfileState.stateKey,
+              initialValue: UserProfileState.initialValue,
               builder: (context, userData, updateState) {
                 return Card(
                   child: Padding(
@@ -199,6 +142,7 @@ class _UserProfilePageState extends State<UserProfilePage> {
   }
 }
 
+/// A reusable editable field component
 class _EditableField extends StatefulWidget {
   final String label;
   final String value;

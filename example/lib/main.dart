@@ -1,9 +1,16 @@
 import 'package:flutter/material.dart';
-import 'package:flutter_state_manager/flutter_state_manager.dart';
-import 'counter_page.dart';
-import 'todo_page.dart';
-import 'user_profile_page.dart';
-import 'async_data_page.dart';
+
+// Import feature states for centralized registration
+import 'features/counter/states/counter_state.dart';
+import 'features/todo/states/todo_state.dart';
+import 'features/user_profile/states/user_profile_state.dart';
+import 'features/async_data/states/async_data_state.dart';
+
+// Import feature pages
+import 'features/counter/pages/counter_page.dart';
+import 'features/todo/pages/todo_page.dart';
+import 'features/user_profile/pages/user_profile_page.dart';
+import 'features/async_data/pages/async_data_page.dart';
 
 void main() {
   // Register all states at app startup
@@ -11,44 +18,19 @@ void main() {
   runApp(const MyApp());
 }
 
+/// Register all application states in a centralized location
 void _registerAllStates() {
-  final store = StateStore.instance;
+  // Register counter state
+  CounterState.register();
   
-  // Register counter state if it doesn't exist
-  if (!store.hasState('counter')) {
-    store.register<int>('counter', 0);
-  }
+  // Register todos state
+  TodoState.register();
   
-  // Register todos state if it doesn't exist
-  if (!store.hasComplexState('todos')) {
-    final initialTodos = [
-      {'id': 1, 'title': 'Learn Flutter', 'completed': true},
-      {'id': 2, 'title': 'Master State Management', 'completed': false},
-      {'id': 3, 'title': 'Build Amazing Apps', 'completed': false},
-    ];
-    store.registerComplex<List<Map<String, dynamic>>>('todos', initialTodos);
-  }
+  // Register user profile state
+  UserProfileState.register();
   
-  // Register user state if it doesn't exist
-  if (!store.hasComplexState('user')) {
-    final initialUser = {
-      'name': 'John Doe',
-      'email': 'john@example.com',
-      'preferences': {
-        'darkMode': false,
-        'notifications': true,
-      }
-    };
-    store.registerComplex<Map<String, dynamic>>('user', initialUser);
-  }
-  
-  // Register async data state if it doesn't exist
-  if (!store.hasState('users_data')) {
-    store.register<AsyncState<List<Map<String, dynamic>>>>(
-      'users_data', 
-      const AsyncState<List<Map<String, dynamic>>>()
-    );
-  }
+  // Register async data state
+  AsyncDataState.register();
 }
 
 class MyApp extends StatelessWidget {
@@ -59,8 +41,8 @@ class MyApp extends StatelessWidget {
     return MaterialApp(
       title: 'Flutter State Manager Demo',
       theme: ThemeData(
-        primarySwatch: Colors.blue,
-        visualDensity: VisualDensity.adaptivePlatformDensity,
+        colorScheme: ColorScheme.fromSeed(seedColor: Colors.deepPurple),
+        useMaterial3: true,
       ),
       home: const HomePage(),
     );
