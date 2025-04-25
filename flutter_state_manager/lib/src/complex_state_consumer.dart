@@ -13,78 +13,135 @@ class ComplexStateConsumer<T> extends StatefulWidget {
   
   /// The builder function that builds the widget based on the current state value
   /// and provides a function to update the state
-  final Widget Function(BuildContext context, T value, void Function(T) updateState) builder;
+  final Widget Function(BuildContext context, T value, void Function(T) updateState, void Function(T Function(T)) updateStateWithUpdater) builder;
   
   /// The initial value to register if the state doesn't exist yet
   final T? initialValue;
+  
+  /// The store to use for this consumer
+  /// If null, the nearest StateStoreProvider's store will be used,
+  /// or the global instance if no provider is found
+  final StateStore? store;
 
   /// Creates a ComplexStateConsumer widget.
   ///
   /// The [stateKey] and [builder] parameters must not be null.
   /// If the state with [stateKey] doesn't exist, it will be registered with [initialValue].
   const ComplexStateConsumer({
-    Key? key,
+    super.key,
     required this.stateKey,
     required this.builder,
     this.initialValue,
-  }) : super(key: key);
+    this.store,
+  });
 
   @override
   ComplexStateConsumerState<T> createState() => ComplexStateConsumerState<T>();
 }
 
 class ComplexStateConsumerState<T> extends State<ComplexStateConsumer<T>> {
-  /// The notifier for the complex state
-  late ComplexStateNotifier<T> _notifier;
-  
-  /// The current value of the state
+  late Stream<T> _stream;
   late T _currentValue;
-  
-  /// The subscription to the state changes
   StreamSubscription<T>? _subscription;
+  late StateStore _store;
+  bool _initialized = false;
 
   @override
   void initState() {
     super.initState();
-    _initializeState();
+    // Initialize store with the widget's store or global instance
+    // but don't access the context yet
+    _store = widget.store ?? StateStore.instance;
+    
+    // Try to initialize with the current store, but don't access context
+    _tryInitializeWithCurrentStore();
+  }
+  
+  void _tryInitializeWithCurrentStore() {
+    try {
+      if (!_store.hasComplexState(widget.stateKey) && widget.initialValue != null) {
+        _store.registerComplex<T>(widget.stateKey, widget.initialValue as T);
+      }
+      
+      final stateNotifier = _store.getComplexState<T>(widget.stateKey);
+      _stream = stateNotifier.stream;
+      _currentValue = stateNotifier.value;
+      
+      _subscription = _stream.listen((data) {
+        if (mounted) {
+          setState(() {
+            _currentValue = data;
+          });
+        }
+      });
+      
+      _initialized = true;
+    } catch (e) {
+      // If initialization fails, we'll try again in didChangeDependencies
+      debugPrint('ComplexStateConsumer: Initial setup deferred to didChangeDependencies: $e');
+    }
+  }
+  
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    
+    // Now it's safe to access context
+    final newStore = widget.store ?? StateStoreProvider.of(context);
+    
+    // If store changed or we're not initialized yet, initialize
+    if (!_initialized || _store != newStore) {
+      // Clean up any existing subscription
+      _subscription?.cancel();
+      
+      _store = newStore;
+      _initializeState();
+    }
   }
 
-  /// Initialize the state and subscribe to changes
   void _initializeState() {
     try {
-      _notifier = StateStore.instance.getComplexState<T>(widget.stateKey);
-      _currentValue = _notifier.value;
+      // Register state if needed
+      if (!_store.hasComplexState(widget.stateKey) && widget.initialValue != null) {
+        _store.registerComplex<T>(widget.stateKey, widget.initialValue as T);
+      } else if (_store.hasComplexState(widget.stateKey) && widget.initialValue != null) {
+        // If state exists, increment reference count
+        _store.registerComplex<T>(widget.stateKey, widget.initialValue as T);
+      }
+      
+      final stateNotifier = _store.getComplexState<T>(widget.stateKey);
+      _stream = stateNotifier.stream;
+      _currentValue = stateNotifier.value;
+      
+      _subscription = _stream.listen((data) {
+        if (mounted) {
+          setState(() {
+            _currentValue = data;
+          });
+        }
+      });
+      
+      _initialized = true;
     } catch (e) {
-      if (widget.initialValue != null) {
-        StateStore.instance.registerComplex<T>(widget.stateKey, widget.initialValue as T);
-        _notifier = StateStore.instance.getComplexState<T>(widget.stateKey);
-        _currentValue = _notifier.value;
-      } else {
-        debugPrint('Error in ComplexStateConsumer: $e');
-        rethrow;
-      }
+      debugPrint('Error in ComplexStateConsumer: $e');
+      rethrow;
     }
-    
-    _subscription = _notifier.stream.listen((data) {
-      if (mounted) {
-        setState(() {
-          _currentValue = data;
-        });
-      }
-    });
-  }
-
-  /// Update the state with a new value
-  void _updateState(T newValue) {
-    _notifier.update(newValue);
   }
 
   @override
   void didUpdateWidget(ComplexStateConsumer<T> oldWidget) {
     super.didUpdateWidget(oldWidget);
-    if (oldWidget.stateKey != widget.stateKey) {
+    if (oldWidget.stateKey != widget.stateKey || oldWidget.store != widget.store) {
+      // Clean up old subscription
       _subscription?.cancel();
       _subscription = null;
+      
+      // If the key changed, unregister from the old key
+      if (oldWidget.stateKey != widget.stateKey) {
+        _store.unregisterComplex(oldWidget.stateKey);
+      }
+      
+      // Re-initialize with new parameters
       _initializeState();
     }
   }
@@ -93,11 +150,22 @@ class ComplexStateConsumerState<T> extends State<ComplexStateConsumer<T>> {
   void dispose() {
     _subscription?.cancel();
     _subscription = null;
+    
+    // Unregister to decrement reference count
+    if (_initialized) {
+      _store.unregisterComplex(widget.stateKey);
+    }
+    
     super.dispose();
   }
 
   @override
   Widget build(BuildContext context) {
-    return widget.builder(context, _currentValue, _updateState);
+    return widget.builder(
+      context, 
+      _currentValue,
+      (T newValue) => _store.setComplexValue<T>(widget.stateKey, newValue),
+      (T Function(T) updater) => _store.updateComplexValue<T>(widget.stateKey, updater),
+    );
   }
 }

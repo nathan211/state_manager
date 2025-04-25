@@ -1,10 +1,5 @@
 import 'package:flutter/material.dart';
-
-// Import feature states for centralized registration
-import 'features/counter/states/counter_state.dart';
-import 'features/todo/states/todo_state.dart';
-import 'features/user_profile/states/user_profile_state.dart';
-import 'features/async_data/states/async_data_state.dart';
+import 'package:flutter_state_manager/flutter_state_manager.dart';
 
 // Import feature pages
 import 'features/counter/pages/counter_page.dart';
@@ -13,24 +8,7 @@ import 'features/user_profile/pages/user_profile_page.dart';
 import 'features/async_data/pages/async_data_page.dart';
 
 void main() {
-  // Register all states at app startup
-  _registerAllStates();
   runApp(const MyApp());
-}
-
-/// Register all application states in a centralized location
-void _registerAllStates() {
-  // Register counter state
-  CounterState.register();
-  
-  // Register todos state
-  TodoState.register();
-  
-  // Register user profile state
-  UserProfileState.register();
-  
-  // Register async data state
-  AsyncDataState.register();
 }
 
 class MyApp extends StatelessWidget {
@@ -38,13 +16,19 @@ class MyApp extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return MaterialApp(
-      title: 'Flutter State Manager Demo',
-      theme: ThemeData(
-        colorScheme: ColorScheme.fromSeed(seedColor: Colors.deepPurple),
-        useMaterial3: true,
+    // Create a named store for the app
+    final appStore = StateStore.named('app_store');
+    
+    return StateStoreProvider(
+      store: appStore,
+      child: MaterialApp(
+        title: 'Flutter State Manager Demo',
+        theme: ThemeData(
+          colorScheme: ColorScheme.fromSeed(seedColor: Colors.deepPurple),
+          useMaterial3: true,
+        ),
+        home: const HomePage(),
       ),
-      home: const HomePage(),
     );
   }
 }
@@ -56,62 +40,120 @@ class HomePage extends StatelessWidget {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Flutter State Manager Demo'),
+        title: const Text('State Manager Demo'),
+        backgroundColor: Theme.of(context).colorScheme.inversePrimary,
       ),
-      body: Padding(
-        padding: const EdgeInsets.all(16.0),
-        child: Center(
-          child: Column(
-            mainAxisAlignment: MainAxisAlignment.center,
-            crossAxisAlignment: CrossAxisAlignment.stretch,
-            children: [
-              const Text(
-                'Select an example:',
-                style: TextStyle(fontSize: 24, fontWeight: FontWeight.bold),
+      body: Center(
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            const Text(
+              'Select a demo:',
+              style: TextStyle(fontSize: 24, fontWeight: FontWeight.bold),
+            ),
+            const SizedBox(height: 20),
+            
+            // Counter demo
+            ElevatedButton(
+              onPressed: () {
+                Navigator.push(
+                  context, 
+                  MaterialPageRoute(
+                    builder: (context) => StateProvider<int>(
+                      key: UniqueKey(), 
+                      stateKey: 'counter',
+                      initialValue: 0,
+                      child: const CounterPage(),
+                    ),
+                  ),
+                );
+              },
+              child: const Text('Counter Demo'),
+            ),
+            
+            const SizedBox(height: 10),
+            
+            // Todo list demo
+            ElevatedButton(
+              onPressed: () {
+                Navigator.push(
+                  context, 
+                  MaterialPageRoute(
+                    builder: (context) => ComplexStateProvider<List<Map<String, dynamic>>>(
+                      key: UniqueKey(), 
+                      stateKey: StateKey.forFeature('todo', 'items'),
+                      initialValue: [
+                        {'id': 1, 'title': 'Learn Flutter', 'completed': true},
+                        {'id': 2, 'title': 'Master State Management', 'completed': false},
+                        {'id': 3, 'title': 'Build Amazing Apps', 'completed': false},
+                      ],
+                      child: const TodoPage(),
+                    ),
+                  ),
+                );
+              },
+              child: const Text('Todo List Demo'),
+            ),
+            
+            const SizedBox(height: 10),
+            
+            // User profile demo
+            ElevatedButton(
+              onPressed: () {
+                Navigator.push(
+                  context, 
+                  MaterialPageRoute(
+                    builder: (context) => ComplexStateProvider<Map<String, dynamic>>(
+                      key: UniqueKey(), 
+                      stateKey: StateKey.forFeature('user_profile', 'data'),
+                      initialValue: {
+                        'name': 'John Doe',
+                        'email': 'john.doe@example.com',
+                        'preferences': {
+                          'darkMode': false,
+                          'notifications': true,
+                        }
+                      },
+                      child: const UserProfilePage(),
+                    ),
+                  ),
+                );
+              },
+              child: const Text('User Profile Demo'),
+            ),
+            
+            const SizedBox(height: 10),
+            
+            // Async data demo
+            ElevatedButton(
+              onPressed: () {
+                Navigator.push(
+                  context, 
+                  MaterialPageRoute(
+                    builder: (context) => StateProvider<AsyncState<List<String>>>(
+                      key: UniqueKey(), 
+                      stateKey: StateKey.forFeature('async_data', 'state'),
+                      initialValue: const AsyncState<List<String>>(),
+                      child: const AsyncDataPage(),
+                    ),
+                  ),
+                );
+              },
+              child: const Text('Async Data Demo'),
+            ),
+            
+            const SizedBox(height: 30),
+            
+            // Information about the demo
+            const Padding(
+              padding: EdgeInsets.symmetric(horizontal: 20),
+              child: Text(
+                'This demo showcases the enhanced state management package with scoped stores and automatic lifecycle management.',
                 textAlign: TextAlign.center,
+                style: TextStyle(fontStyle: FontStyle.italic),
               ),
-              const SizedBox(height: 32),
-              ElevatedButton(
-                onPressed: () {
-                  Navigator.push(
-                    context,
-                    MaterialPageRoute(builder: (context) => const CounterPage()),
-                  );
-                },
-                child: const Text('Counter Example'),
-              ),
-              const SizedBox(height: 16),
-              ElevatedButton(
-                onPressed: () {
-                  Navigator.push(
-                    context,
-                    MaterialPageRoute(builder: (context) => const TodoPage()),
-                  );
-                },
-                child: const Text('Todo List Example'),
-              ),
-              const SizedBox(height: 16),
-              ElevatedButton(
-                onPressed: () {
-                  Navigator.push(
-                    context,
-                    MaterialPageRoute(builder: (context) => const UserProfilePage()),
-                  );
-                },
-                child: const Text('User Profile Example'),
-              ),
-              const SizedBox(height: 16),
-              ElevatedButton(
-                onPressed: () {
-                  Navigator.push(
-                    context,
-                    MaterialPageRoute(builder: (context) => const AsyncDataPage()),
-                  );
-                },
-                child: const Text('Async Data Example'),
-              ),
-            ],
-          ),
+            ),
+          ],
         ),
       ),
     );

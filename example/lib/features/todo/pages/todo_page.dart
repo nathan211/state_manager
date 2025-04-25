@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_state_manager/flutter_state_manager.dart';
 import '../controllers/todo_controller.dart';
-import '../states/todo_state.dart';
 
 /// Todo list example page demonstrating complex state management
 class TodoPage extends StatefulWidget {
@@ -13,7 +12,7 @@ class TodoPage extends StatefulWidget {
 
 class _TodoPageState extends State<TodoPage> {
   /// Controller for handling business logic
-  final _controller = TodoController();
+  late TodoController _controller;
   
   /// Controller for the new todo text field
   final _textController = TextEditingController();
@@ -21,9 +20,16 @@ class _TodoPageState extends State<TodoPage> {
   @override
   void initState() {
     super.initState();
-    // Ensure todos state is registered
-    TodoState.register();
-    debugPrint('TodoPage: State registered in initState');
+    _controller = TodoController();
+  }
+  
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    // Get the store from the context
+    final store = StateStoreProvider.of(context);
+    // Initialize the controller with the store
+    _controller.setStore(store);
   }
   
   @override
@@ -75,8 +81,7 @@ class _TodoPageState extends State<TodoPage> {
           // Todo list using ComplexStateBuilder for reactivity
           Expanded(
             child: ComplexStateBuilder<List<Map<String, dynamic>>>(
-              stateKey: TodoState.stateKey,
-              initialValue: TodoState.initialValue,
+              stateKey: TodoController.todoStateKey,
               builder: (context, todos) {
                 debugPrint('TodoPage: ComplexStateBuilder rebuilding with ${todos.length} todos');
                 

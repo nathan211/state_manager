@@ -1,12 +1,21 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_state_manager/flutter_state_manager.dart';
 import '../states/user_profile_state.dart';
 
 /// Controller class for the user profile feature
 /// Handles business logic and state interactions
 class UserProfileController {
+  /// The store to use for state management
+  StateStore _store = StateStore.instance;
+  
+  /// Set the store to use
+  void setStore(StateStore store) {
+    _store = store;
+  }
+
   /// Get the current user profile
   Map<String, dynamic> getUserProfile() {
-    return UserProfileState.getNotifier().value;
+    return _store.getComplexValue<Map<String, dynamic>>(UserProfileState.stateKey);
   }
   
   /// Create a deep copy of the user profile
@@ -41,7 +50,7 @@ class UserProfileController {
         }
       }
       
-      UserProfileState.getNotifier().update(userProfile);
+      _store.setComplexValue<Map<String, dynamic>>(UserProfileState.stateKey, userProfile);
     } catch (e) {
       debugPrint('Error updating field $fieldPath: $e');
       ScaffoldMessenger.of(context).showSnackBar(
@@ -109,32 +118,38 @@ class UserProfileController {
   }
   
   /// Update the dark mode preference
-  void updateDarkMode(bool enabled, {required BuildContext context}) {
+  /// Returns true if successful, false otherwise
+  bool updateDarkMode(bool enabled, {required BuildContext context}) {
     try {
       _updateField('preferences.darkMode', enabled, context: context);
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(content: Text('Dark mode ${enabled ? 'enabled' : 'disabled'}')),
       );
+      return true;
     } catch (e) {
       debugPrint('Error updating dark mode: $e');
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(content: Text('Error updating dark mode: $e')),
       );
+      return false;
     }
   }
   
   /// Update the notifications preference
-  void updateNotifications(bool enabled, {required BuildContext context}) {
+  /// Returns true if successful, false otherwise
+  bool updateNotifications(bool enabled, {required BuildContext context}) {
     try {
       _updateField('preferences.notifications', enabled, context: context);
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(content: Text('Notifications ${enabled ? 'enabled' : 'disabled'}')),
       );
+      return true;
     } catch (e) {
       debugPrint('Error updating notifications: $e');
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(content: Text('Error updating notifications: $e')),
       );
+      return false;
     }
   }
 }

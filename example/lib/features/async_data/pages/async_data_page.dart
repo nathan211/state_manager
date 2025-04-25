@@ -13,13 +13,23 @@ class AsyncDataPage extends StatefulWidget {
 
 class _AsyncDataPageState extends State<AsyncDataPage> {
   /// Controller for handling business logic
-  final _controller = AsyncDataController();
+  late AsyncDataController _controller;
+  late StateStore _store;
 
   @override
   void initState() {
     super.initState();
-    // Ensure async data state is registered
-    AsyncDataState.register();
+    // Initialize controller
+    _controller = AsyncDataController();
+  }
+  
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    // Get the store from the nearest provider
+    _store = StateStoreProvider.of(context);
+    // Set the store in the controller
+    _controller.setStore(_store);
   }
 
   @override
@@ -75,6 +85,8 @@ class _AsyncDataPageState extends State<AsyncDataPage> {
             Expanded(
               child: StateBuilder<AsyncState<List<String>>>(
                 stateKey: AsyncDataState.stateKey,
+                store: _store,
+                initialValue: const AsyncState<List<String>>(),
                 builder: (context, state) {
                   if (state.isInitial) {
                     return const Center(

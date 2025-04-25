@@ -13,13 +13,23 @@ class CounterPage extends StatefulWidget {
 
 class _CounterPageState extends State<CounterPage> {
   /// Controller for handling business logic
-  final _controller = CounterController();
+  late CounterController _controller;
+  late StateStore _store;
 
   @override
   void initState() {
     super.initState();
-    // Ensure counter state is registered
-    CounterState.register();
+    // Initialize controller
+    _controller = CounterController();
+  }
+  
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    // Get the store from the nearest provider
+    _store = StateStoreProvider.of(context);
+    // Set the store in the controller
+    _controller.setStore(_store);
   }
 
   @override
@@ -47,6 +57,8 @@ class _CounterPageState extends State<CounterPage> {
             // Using StateBuilder to reactively display the counter value
             StateBuilder<int>(
               stateKey: CounterState.stateKey,
+              initialValue: CounterState.initialValue,
+              store: _store,
               builder: (context, count) {
                 return Text(
                   '$count',
@@ -76,6 +88,8 @@ class _CounterPageState extends State<CounterPage> {
             // Using StateConsumer to both display and update the counter value
             StateConsumer<int>(
               stateKey: CounterState.stateKey,
+              initialValue: CounterState.initialValue,
+              store: _store,
               builder: (context, count, updateState) {
                 return Column(
                   children: [

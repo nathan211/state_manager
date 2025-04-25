@@ -1,18 +1,27 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_state_manager/flutter_state_manager.dart';
 import '../states/counter_state.dart';
 
 /// Controller class for the counter feature
 /// Handles business logic and state interactions
 class CounterController {
+  /// The store to use for state management
+  StateStore _store = StateStore.instance;
+  
+  /// Set the store to use
+  void setStore(StateStore store) {
+    _store = store;
+  }
+
   /// Get the current counter value
   int getValue() {
-    return CounterState.getNotifier().value;
+    return _store.getValue<int>(CounterState.stateKey);
   }
   
   /// Update the counter value
   void setValue(int value) {
     try {
-      CounterState.getNotifier().update(value);
+      _store.setValue<int>(CounterState.stateKey, value);
     } catch (e) {
       debugPrint('Error updating counter value: $e');
     }

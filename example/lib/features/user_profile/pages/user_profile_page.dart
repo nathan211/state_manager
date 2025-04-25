@@ -13,13 +13,23 @@ class UserProfilePage extends StatefulWidget {
 
 class _UserProfilePageState extends State<UserProfilePage> {
   /// Controller for handling business logic
-  final _controller = UserProfileController();
+  late UserProfileController _controller;
+  late StateStore _store;
 
   @override
   void initState() {
     super.initState();
-    // Ensure user profile state is registered
-    UserProfileState.register();
+    // Initialize controller
+    _controller = UserProfileController();
+  }
+  
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    // Get the store from the nearest provider
+    _store = StateStoreProvider.of(context);
+    // Set the store in the controller
+    _controller.setStore(_store);
   }
 
   @override
@@ -45,6 +55,7 @@ class _UserProfilePageState extends State<UserProfilePage> {
               fieldPath: 'name',
               selector: (user) => user['name'] as String,
               initialValue: UserProfileState.initialValue,
+              store: _store,
               builder: (context, name) {
                 return _EditableField(
                   label: 'Name',
@@ -62,6 +73,7 @@ class _UserProfilePageState extends State<UserProfilePage> {
               fieldPath: 'email',
               selector: (user) => user['email'] as String,
               initialValue: UserProfileState.initialValue,
+              store: _store,
               builder: (context, email) {
                 return _EditableField(
                   label: 'Email',
@@ -86,6 +98,7 @@ class _UserProfilePageState extends State<UserProfilePage> {
               fieldPath: 'preferences.darkMode',
               selector: (user) => user['preferences']['darkMode'] as bool,
               initialValue: UserProfileState.initialValue,
+              store: _store,
               builder: (context, darkMode) {
                 return SwitchListTile(
                   title: const Text('Dark Mode'),
@@ -101,22 +114,24 @@ class _UserProfilePageState extends State<UserProfilePage> {
               fieldPath: 'preferences.notifications',
               selector: (user) => user['preferences']['notifications'] as bool,
               initialValue: UserProfileState.initialValue,
+              store: _store,
               builder: (context, notifications) {
                 return SwitchListTile(
-                  title: const Text('Enable Notifications'),
+                  title: const Text('Notifications'),
                   value: notifications,
                   onChanged: (newValue) => _controller.updateNotifications(newValue, context: context),
                 );
               },
             ),
             
-            const SizedBox(height: 20),
+            const SizedBox(height: 30),
             
-            // Using StateConsumer to display the entire user object
-            StateConsumer<Map<String, dynamic>>(
+            // Display complete user profile
+            ComplexStateBuilder<Map<String, dynamic>>(
               stateKey: UserProfileState.stateKey,
               initialValue: UserProfileState.initialValue,
-              builder: (context, userData, updateState) {
+              store: _store,
+              builder: (context, userProfile) {
                 return Card(
                   child: Padding(
                     padding: const EdgeInsets.all(16.0),
@@ -124,11 +139,14 @@ class _UserProfilePageState extends State<UserProfilePage> {
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
                         const Text(
-                          'Current User Data (JSON):',
+                          'Current Profile Data:',
                           style: TextStyle(fontWeight: FontWeight.bold),
                         ),
                         const SizedBox(height: 8),
-                        Text(userData.toString()),
+                        Text('Name: ${userProfile['name']}'),
+                        Text('Email: ${userProfile['email']}'),
+                        Text('Dark Mode: ${userProfile['preferences']['darkMode']}'),
+                        Text('Notifications: ${userProfile['preferences']['notifications']}'),
                       ],
                     ),
                   ),
