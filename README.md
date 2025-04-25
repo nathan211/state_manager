@@ -11,22 +11,25 @@ A lightweight, reactive state management solution for Flutter applications using
 - **Decoupled**: Separate state logic from UI components
 - **Complex State Support**: Handle nested state objects with field-specific updates
 - **Asynchronous Operations**: Built-in handling for loading, success, and error states
-
-## Project Structure
-
-This repository contains:
-
-- **flutter_state_manager**: The core library package
-- **example**: A comprehensive example application demonstrating all features
+- **Scoped State**: Multiple state stores with provider-based access
+- **Hierarchical Keys**: Prevent naming conflicts with feature-scoped state keys
+- **Automatic Lifecycle Management**: Reference counting for proper state cleanup
+- **Provider Pattern**: Familiar provider-based API for state registration and access
 
 ## Core Components
 
+- **StateStore**: Central repository for all application states, with support for multiple named instances
+- **StateStoreProvider**: InheritedWidget for accessing state stores in the widget tree
 - **StateNotifier**: Manages individual state objects and notifies listeners of changes
-- **StateStore**: Central repository for all application states
-- **StateBuilder**: Widget that rebuilds when specific states change
-- **StateConsumer**: Widget that both consumes state and rebuilds when it changes
 - **ComplexStateNotifier**: Handles nested state with efficient field-specific updates
+- **StateBuilder**: Widget that rebuilds when specific states change
+- **ComplexStateBuilder**: Widget for complex state that rebuilds when state changes
+- **StateConsumer**: Widget that both consumes state and provides update functions
+- **ComplexStateConsumer**: Widget for complex state that provides update functions
 - **FieldBuilder**: Widget that rebuilds when specific fields in a complex state change
+- **StateProvider**: Widget that registers and provides simple state to its descendants
+- **ComplexStateProvider**: Widget that registers and provides complex state to its descendants
+- **StateKey**: Utility for creating hierarchical state keys to prevent naming conflicts
 - **AsyncStateHandler**: Helper for managing asynchronous operations with proper state handling
 
 ## Getting Started
@@ -35,52 +38,76 @@ Add the package to your `pubspec.yaml`:
 
 ```yaml
 dependencies:
-  flutter_state_manager: ^0.0.1
+  flutter_state_manager: ^0.1.0
 ```
 
 Run `flutter pub get` to install the package.
 
-## Example App
-
-The example app demonstrates all the features of the state management package with practical use cases:
-
-- **Counter Example**: Simple state management with increment/decrement operations
-- **Todo List Example**: Complex state management with CRUD operations
-- **User Profile Example**: Nested state management with field-specific updates
-- **Async Data Example**: Asynchronous state management with loading/success/error states
-
-### Running the Example
-
-```bash
-cd example
-flutter run
-```
-
 ## Usage
 
-### 1. Basic State Management
+### 1. Setting Up State Stores
 
-First, register your states in the central `StateStore`:
+Create a global state store or multiple scoped stores:
 
 ```dart
 void main() {
-  // Register states
-  StateStore.instance.register<int>('counter', 0);
-  StateStore.instance.register<String>('username', '');
-  StateStore.instance.register<bool>('isDarkMode', false);
+  // Global store (singleton)
+  final globalStore = StateStore.instance;
   
-  runApp(MyApp());
+  // Named store for feature isolation
+  final featureStore = StateStore.named('feature_store');
+  
+  runApp(
+    StateStoreProvider(
+      store: globalStore,
+      child: MyApp(),
+    ),
+  );
 }
 ```
 
-Use `StateBuilder` to consume state:
+### 2. Using Provider Widgets for State Registration
+
+Register states using provider widgets:
+
+```dart
+// Simple state
+StateProvider<int>(
+  stateKey: StateKey.forFeature('counter', 'value'),
+  initialValue: 0,
+  child: CounterScreen(),
+),
+
+// Complex state
+ComplexStateProvider<Map<String, dynamic>>(
+  stateKey: StateKey.forFeature('user_profile', 'data'),
+  initialValue: {
+    'name': 'John Doe',
+    'email': 'john@example.com',
+    'preferences': {
+      'darkMode': false,
+      'notifications': true,
+    }
+  },
+  child: UserProfileScreen(),
+),
+```
+
+### 3. Accessing State in Widgets
+
+Use builder widgets to access and display state:
 
 ```dart
 class CounterDisplay extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
+    // Get the nearest store from the provider
+    final store = StateStoreProvider.of(context);
+    
     return StateBuilder<int>(
-      stateKey: 'counter',
+      stateKey: StateKey.forFeature('counter', 'value'),
+      store: store, // Use the scoped store
+      initialValue: 0, // Fallback initial value
       builder: (context, value) {
         return Text('Count: $value');
       },
@@ -89,153 +116,163 @@ class CounterDisplay extends StatelessWidget {
 }
 ```
 
-Use `StateConsumer` to both consume and update state:
+### 4. Updating State with Controllers
+
+Create controllers to handle business logic:
 
 ```dart
-class CounterWidget extends StatelessWidget {
+class CounterController {
+  // Store to use for state access
+  StateStore _store = StateStore.instance;
+  
+  // Set the store to use (for dependency injection)
+  void setStore(StateStore store) {
+    _store = store;
+  }
+  
+  // Get the current counter value
+  int getValue() {
+    return _store.getValue<int>(StateKey.forFeature('counter', 'value'));
+  }
+  
+  // Increment the counter
+  void incrementCounter() {
+    final currentValue = getValue();
+    _store.setValue<int>(StateKey.forFeature('counter', 'value'), currentValue + 1);
+  }
+}
+```
+
+### 5. Connecting Controllers to Widgets
+
+Connect controllers to widgets:
+
+```dart
+class CounterScreen extends StatefulWidget {
+  @override
+  _CounterScreenState createState() => _CounterScreenState();
+}
+
+class _CounterScreenState extends State<CounterScreen> {
+  late CounterController _controller;
+  late StateStore _store;
+  
+  @override
+  void initState() {
+    super.initState();
+    _controller = CounterController();
+  }
+  
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    // Get the store from the nearest provider
+    _store = StateStoreProvider.of(context);
+    // Set the store in the controller
+    _controller.setStore(_store);
+  }
+  
   @override
   Widget build(BuildContext context) {
-    return StateConsumer<int>(
-      stateKey: 'counter',
-      builder: (context, value, updateState) {
-        return Column(
-          children: [
-            Text('Count: $value'),
-            ElevatedButton(
-              onPressed: () => updateState(value + 1),
-              child: Text('Increment'),
-            ),
-          ],
-        );
-      },
+    return Scaffold(
+      appBar: AppBar(title: Text('Counter')),
+      body: Center(
+        child: StateBuilder<int>(
+          stateKey: StateKey.forFeature('counter', 'value'),
+          store: _store,
+          initialValue: 0,
+          builder: (context, count) {
+            return Text('Count: $count', style: TextStyle(fontSize: 24));
+          },
+        ),
+      ),
+      floatingActionButton: FloatingActionButton(
+        onPressed: _controller.incrementCounter,
+        child: Icon(Icons.add),
+      ),
     );
   }
 }
 ```
 
-### 2. Complex Nested State Management
+### 6. Working with Complex State and Field-Specific Updates
 
-Register a complex state with nested objects:
+Use FieldBuilder for efficient field-specific updates:
 
 ```dart
-void main() {
-  // Register a complex state
-  StateStore.instance.registerComplex<Map<String, dynamic>>('user', {
-    'personal': {
-      'name': 'John Doe',
-      'age': 30,
-    },
-    'address': {
-      'street': '123 Main St',
-      'city': 'New York',
-      'zipCode': '10001',
-    },
-    'hobbies': ['Reading', 'Coding', 'Hiking'],
-  });
+FieldBuilder<Map<String, dynamic>, bool>(
+  stateKey: StateKey.forFeature('user_profile', 'data'),
+  fieldPath: 'preferences.darkMode',
+  selector: (user) => user['preferences']['darkMode'] as bool,
+  store: _store,
+  initialValue: initialUserData,
+  builder: (context, darkMode) {
+    return SwitchListTile(
+      title: Text('Dark Mode'),
+      value: darkMode,
+      onChanged: (value) => _controller.updateDarkMode(value),
+    );
+  },
+),
+```
+
+### 7. Handling Asynchronous Operations
+
+Use AsyncState and AsyncStateHandler for async operations:
+
+```dart
+// Define async state
+StateProvider<AsyncState<List<String>>>(
+  stateKey: StateKey.forFeature('data', 'items'),
+  initialValue: AsyncState<List<String>>(),
+  child: DataScreen(),
+),
+
+// In your controller
+Future<void> loadData() async {
+  // Set loading state
+  _store.setValue<AsyncState<List<String>>>(
+    StateKey.forFeature('data', 'items'),
+    AsyncState<List<String>>(status: AsyncStatus.loading),
+  );
   
-  runApp(MyApp());
+  try {
+    // Execute async operation
+    final result = await apiClient.fetchData();
+    
+    // Set success state
+    _store.setValue<AsyncState<List<String>>>(
+      StateKey.forFeature('data', 'items'),
+      AsyncState<List<String>>(
+        status: AsyncStatus.success,
+        data: result,
+      ),
+    );
+  } catch (e) {
+    // Set error state
+    _store.setValue<AsyncState<List<String>>>(
+      StateKey.forFeature('data', 'items'),
+      AsyncState<List<String>>(
+        status: AsyncStatus.error,
+        error: e,
+      ),
+    );
+  }
 }
 ```
 
-Use `FieldBuilder` to observe and update specific fields:
+## Benefits
 
-```dart
-FieldBuilder<Map<String, dynamic>, String>(
-  stateKey: 'user',
-  fieldPath: 'personal.name',
-  selector: (state) => state['personal']['name'] as String,
-  builder: (context, name) {
-    return Row(
-      children: [
-        Text('Name: $name'),
-        IconButton(
-          icon: Icon(Icons.edit),
-          onPressed: () {
-            // Update a specific field
-            StateStore.instance.updateField<Map<String, dynamic>, String>(
-              'user', 'personal.name', 'Jane Doe',
-            );
-          },
-        ),
-      ],
-    );
-  },
-),
-```
+- **Scalable Architecture**: Easily scale from small to large applications
+- **Feature Isolation**: Scope state to specific features for better organization
+- **Memory Efficiency**: Automatic cleanup of unused states
+- **Navigation Support**: Reliable state management during navigation
+- **Minimal Boilerplate**: Simple API with minimal setup required
+- **Familiar Patterns**: Combines the best of Provider, BLoC, and Redux patterns
 
-### 3. Async State Management
+## Example
 
-Handle asynchronous operations with built-in state management:
-
-```dart
-// Register the async state
-StateStore.instance.register<AsyncState<List<String>>>(
-  'users',
-  AsyncState<List<String>>(),
-);
-
-// Use StateBuilder to display different UI based on async state
-StateBuilder<AsyncState<List<String>>>(
-  stateKey: 'users',
-  builder: (context, state) {
-    if (state.isInitial) {
-      return Text('Press the button to load users');
-    } else if (state.isLoading) {
-      return CircularProgressIndicator();
-    } else if (state.isError) {
-      return Text('Error: ${state.error}');
-    } else {
-      return Column(
-        children: [
-          Text('Users:'),
-          ...state.data!.map((user) => Text(user)).toList(),
-        ],
-      );
-    }
-  },
-),
-
-// Execute async operation with proper state handling
-ElevatedButton(
-  onPressed: () {
-    AsyncStateHandler.execute<List<String>>(
-      stateKey: 'users',
-      asyncFunction: () async {
-        // Simulate API call
-        await Future.delayed(Duration(seconds: 2));
-        return ['John', 'Jane', 'Bob', 'Alice'];
-      },
-    );
-  },
-  child: Text('Load Users'),
-),
-```
-
-### 4. Direct State Access
-
-You can also access and update states directly:
-
-```dart
-// Get a state value
-final count = StateStore.instance.getValue<int>('counter');
-
-// Update a state value
-StateStore.instance.setValue<int>('counter', 10);
-
-// Update a complex state
-final complexNotifier = StateStore.instance.getComplexState<Map<String, dynamic>>('user');
-final currentUser = Map<String, dynamic>.from(complexNotifier.value);
-currentUser['personal']['name'] = 'Jane Doe';
-complexNotifier.update(currentUser);
-```
-
-## Best Practices
-
-1. **Centralized Registration**: Register all states at app startup
-2. **Immutable Updates**: Always create new copies of objects when updating complex state
-3. **Proper Disposal**: Ensure all stream subscriptions are properly disposed
-4. **Type Safety**: Use explicit types for all state operations
-5. **Error Handling**: Wrap state operations in try-catch blocks for robust error handling
+See the `example` directory for a complete sample application demonstrating all features.
 
 ## License
 
